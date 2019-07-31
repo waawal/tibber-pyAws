@@ -4,7 +4,7 @@ setup(
     name='tibber_aws',
     packages=['tibber_aws'],
     install_requires=['boto3'],
-    version='0.1.0',
+    version='0.1.1',
     description='A python3 library to communicate with Aws',
     python_requires='>=3.5.3',
     author='Tibber',
