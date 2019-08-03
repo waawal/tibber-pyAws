@@ -4,7 +4,7 @@ setup(
     name='tibber_aws',
     packages=['tibber_aws'],
     install_requires=['boto3', 'aiohttp', 'async_timeout', 'numpy'],
-    version='0.1.1',
+    version='0.1.2',
     description='A python3 library to communicate with Aws',
     python_requires='>=3.5.3',
     author='Tibber',
