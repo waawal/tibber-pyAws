@@ -1,4 +1,5 @@
 aiohttp
+aiobotocore
 async_timeout
 boto3
 numpy
