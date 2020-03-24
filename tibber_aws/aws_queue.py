@@ -2,83 +2,114 @@ import json
 import logging
 import time
 
-import boto3
+import aiobotocore
 
 _LOGGER = logging.getLogger(__name__)
 
 
 class Queue:
-    def __init__(self, queue_name, region_name='eu-west-1'):
+    def __init__(self, queue_name, region_name="eu-west-1"):
         self._queue_name = queue_name
         self._region_name = region_name
-        self._sns = boto3.resource('sns', self._region_name)
-        self._sqs = boto3.resource('sqs', self._region_name)
+        self._session = aiobotocore.get_session()
+        self._sqs = self._session.create_client("sqs", region_name=region_name)
+        self.queue_url = None
 
-        self.queue = None
-        self.queue_arn = None
+    async def subscribe_topic(self, topic_name):
 
-    def subscribe_topic(self, topic_name):
+        response = await self._sqs.create_queue(QueueName=self._queue_name)
+        self.queue_url = response["QueueUrl"]
+        attr_response = await self._sqs.get_queue_attributes(
+            QueueUrl=self.queue_url, AttributeNames=["All"]
+        )
 
-        self.queue = self._sqs.create_queue(QueueName=self._queue_name)
-        self.queue_arn = self.queue.attributes['QueueArn']
+        queue_attributes = attr_response.get("Attributes")
+        queue_arn = queue_attributes.get("QueueArn")
 
         # Set up a policy to allow SNS access to the queue
-        if 'Policy' in self.queue.attributes:
-            policy = json.loads(self.queue.attributes['Policy'])
+        if "Policy" in queue_attributes:
+            policy = json.loads(queue_attributes["Policy"])
         else:
             policy = {
                 "Version": "2012-10-17",
-                "Statement": [{
-                    "Sid": "Sid" + str(int(time.time())),
-                    "Effect": "Allow",
-                    "Principal": {
-                        "AWS": "*"
-                    },
-                    "Action": ["sqs:SendMessage", "sqs:ReceiveMessage"]
-                }
-                ]
+                "Statement": [
+                    {
+                        "Sid": "Sid" + str(int(time.time())),
+                        "Effect": "Allow",
+                        "Principal": {"AWS": "*"},
+                        "Action": ["sqs:SendMessage", "sqs:ReceiveMessage"],
+                    }
+                ],
             }
 
-        statement = policy.get('Statement', [{}])[0]
-        statement['Resource'] = statement.get('Resource', self.queue_arn)
-        statement['Condition'] = statement.get('Condition', {})
+        statement = policy.get("Statement", [{}])[0]
+        statement["Resource"] = statement.get("Resource", queue_arn)
+        statement["Condition"] = statement.get("Condition", {})
 
-        statement['Condition']['StringLike'] = statement['Condition'].get('StringLike', {})
-        source_arn = statement['Condition']['StringLike'].get('aws:SourceArn', [])
+        statement["Condition"]["StringLike"] = statement["Condition"].get(
+            "StringLike", {}
+        )
+        source_arn = statement["Condition"]["StringLike"].get("aws:SourceArn", [])
         if not isinstance(source_arn, list):
             source_arn = [source_arn]
-        topic_arn = self._sns.create_topic(Name=topic_name).arn
+
+        sns = self._session.create_client("sns", region_name=self._region_name)
+        response = await sns.create_topic(Name=topic_name)
+        topic_arn = response["TopicArn"]
+
         if topic_arn not in source_arn:
             source_arn.append(topic_arn)
-            statement['Condition']['StringLike']['aws:SourceArn'] = source_arn
-            policy['Statement'] = statement
-            self.queue.set_attributes(Attributes={
-                'Policy': json.dumps(policy)
-            })
+            statement["Condition"]["StringLike"]["aws:SourceArn"] = source_arn
+            policy["Statement"] = statement
+            await self._sqs.set_queue_attributes(
+                QueueUrl=self.queue_url, Attributes={"Policy": json.dumps(policy)}
+            )
 
-        topic = self._sns.Topic(topic_arn)
-        for subscription in topic.subscriptions.all():
-            if subscription.attributes['Endpoint'] == self.queue_arn:
-                return
-        _LOGGER.debug("Subscribing to %s", topic_name)
-        topic.subscribe(Protocol='sqs', Endpoint=self.queue_arn)
+        await sns.subscribe(TopicArn=topic_arn, Protocol="sqs", Endpoint=queue_arn)
+        await sns.close()
 
-    def send(self, subject, message, delay_seconds=0):
-        if self.queue is None:
+    async def send(self, subject, message, delay_seconds=0):
+        if self.queue_url is None:
             _LOGGER.error("No subscribed queue")
             return None
 
-        return self.queue.send_message(
+        return await self.queue.send_message(
             QueueUrl=self.queue.url,
             DelaySeconds=delay_seconds,
-            MessageBody=json.dumps({'Subject': subject, 'Message': json.dumps(message)})
+            MessageBody=json.dumps(
+                {"Subject": subject, "Message": json.dumps(message)}
+            ),
         )
 
-    def receive_message(self, num_msgs=1):
-        if self.queue is None:
+    async def receive_message(self, num_msgs=1):
+        if self.queue_url is None:
             _LOGGER.error("No subscribed queue")
-            return None
-        return self.queue.receive_messages(MaxNumberOfMessages=num_msgs)
+            return [None]
+        response = await self._sqs.receive_message(
+            QueueUrl=self.queue_url, MaxNumberOfMessages=num_msgs
+        )
+        res = []
+        for msg in response.get("Messages", []):
+            res.append(MessageHandle(msg))
+        return res
 
-    def delete_message(self, msg_handle):
-        return msg_handle.delete()
+    async def delete_message(self, msg_handle):
+        await self._sqs.delete_message(
+            QueueUrl=self.queue_url, ReceiptHandle=msg_handle.receipt_handle
+        )
+
+    async def close(self):
+        await self._sqs.close()
+
+
+class MessageHandle:
+    def __init__(self, msg):
+        self._msg = msg
+
+    @property
+    def body(self):
+        return self._msg["Body"]
+
+    @property
+    def receipt_handle(self):
+        return self._msg["ReceiptHandle"]
