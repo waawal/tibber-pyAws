@@ -5,6 +5,16 @@ from botocore.exceptions import ClientError
 DEFAULT_REGION_NAME = "eu-west-1"
 
 
+def get_secret_parser(secret_name, region_name=DEFAULT_REGION_NAME):
+    try:
+        secret = get_secret(secret_name, region_name)
+    except botocore.exceptions.NoCredentialsError:
+        return {}
+    if secret is None:
+        return {}
+    return json.loads(secret)
+
+
 def get_secret(secret_name, region_name=DEFAULT_REGION_NAME):
 
     # Create a Secrets Manager client
