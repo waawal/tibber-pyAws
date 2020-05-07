@@ -2,6 +2,8 @@ import boto3
 import base64
 from botocore.exceptions import ClientError
 
+_LOGGER = logging.getLogger(__name__)
+
 DEFAULT_REGION_NAME = "eu-west-1"
 
 
@@ -9,6 +11,7 @@ def get_secret_parser(secret_name, region_name=DEFAULT_REGION_NAME):
     try:
         secret = get_secret(secret_name, region_name)
     except botocore.exceptions.NoCredentialsError:
+        _LOGGER.error("No credentials")
         return {}
     if secret is None:
         return {}
