@@ -35,7 +35,7 @@ class S3Bucket:
             if "PreconditionFailed" in str(exp):
                 return None, STATE_PRECONDITION_FAILED
             raise
-       if len(key) > 3 and key[-3:] == ".gz":
+        if len(key) > 3 and key[-3:] == ".gz":
             content = zlib.decompressobj(zlib.MAX_WBITS | 16).decompress(res)
             return content, STATE_OK
         return res.decode("utf-8"), STATE_OK
