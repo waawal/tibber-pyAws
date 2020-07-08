@@ -15,6 +15,7 @@ STATE_PRECONDITION_FAILED = "precondition_failed"
 class S3Bucket:
     def __init__(self, bucket_name, region_name="eu-west-1"):
         self._bucket_name = bucket_name
+        self._region_name = region_name
         session = aiobotocore.get_session()
         self.client = session.create_client("s3", region_name=region_name)
 
@@ -31,6 +32,10 @@ class S3Bucket:
             )["Body"].read()
         except self.client.exceptions.NoSuchKey:
             return None, STATE_NOT_EXISTING
+        except self.client.exceptions.NoSuchBucket:
+            await self.client.create_bucket(Bucket=self._bucket_name,
+                                            CreateBucketConfiguration={'LocationConstraint': self._region_name})
+            return await self.load_data(key, if_unmodified_since)
         except botocore.exceptions.ClientError as exp:
             if "PreconditionFailed" in str(exp):
                 return None, STATE_PRECONDITION_FAILED
@@ -41,9 +46,18 @@ class S3Bucket:
         return res.decode("utf-8"), STATE_OK
 
     async def store_data(self, key, data):
-        resp = await self.client.put_object(
-            Bucket=self._bucket_name, Key=key, Body=data
-        )
+        if len(key) > 3 and key[-3:] == ".gz":
+            body = zlib.compressobj(wbits=zlib.MAX_WBITS | 16).compress(data)
+        else:
+            body = data
+        try:
+            resp = await self.client.put_object(
+                Bucket=self._bucket_name, Key=key, Body=body
+            )
+        except self.client.exceptions.NoSuchBucket:
+            await self.client.create_bucket(Bucket=self._bucket_name,
+                                            CreateBucketConfiguration={'LocationConstraint': self._region_name})
+            return await self.store_data(key, data)
         return resp
 
     async def close(self):
