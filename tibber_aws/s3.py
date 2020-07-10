@@ -32,10 +32,6 @@ class S3Bucket:
             )["Body"].read()
         except self.client.exceptions.NoSuchKey:
             return None, STATE_NOT_EXISTING
-        except self.client.exceptions.NoSuchBucket:
-            await self.client.create_bucket(Bucket=self._bucket_name,
-                                            CreateBucketConfiguration={'LocationConstraint': self._region_name})
-            return await self.load_data(key, if_unmodified_since)
         except botocore.exceptions.ClientError as exp:
             if "PreconditionFailed" in str(exp):
                 return None, STATE_PRECONDITION_FAILED
