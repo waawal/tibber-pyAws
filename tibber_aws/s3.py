@@ -43,7 +43,9 @@ class S3Bucket:
 
     async def store_data(self, key, data):
         if len(key) > 3 and key[-3:] == ".gz":
-            body = zlib.compressobj(wbits=zlib.MAX_WBITS | 16).compress(data)
+            compressor = zlib.compressobj(wbits=zlib.MAX_WBITS | 16)
+            body = compressor.compress(data)
+            body += compressor.flush()
         else:
             body = data
         try:
