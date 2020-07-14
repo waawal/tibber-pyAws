@@ -12,14 +12,14 @@ class Queue:
         self._queue_name = queue_name
         self._region_name = region_name
         self._session = aiobotocore.get_session()
-        self._sqs = self._session.create_client("sqs", region_name=region_name)
+        self._client = self._session.create_client("sqs", region_name=region_name)
         self.queue_url = None
 
     async def subscribe_topic(self, topic_name):
 
-        response = await self._sqs.create_queue(QueueName=self._queue_name)
+        response = await self._client.create_queue(QueueName=self._queue_name)
         self.queue_url = response["QueueUrl"]
-        attr_response = await self._sqs.get_queue_attributes(
+        attr_response = await self._client.get_queue_attributes(
             QueueUrl=self.queue_url, AttributeNames=["All"]
         )
 
@@ -61,7 +61,7 @@ class Queue:
             source_arn.append(topic_arn)
             statement["Condition"]["StringLike"]["aws:SourceArn"] = source_arn
             policy["Statement"] = statement
-            await self._sqs.set_queue_attributes(
+            await self._client.set_queue_attributes(
                 QueueUrl=self.queue_url, Attributes={"Policy": json.dumps(policy)}
             )
 
@@ -85,7 +85,7 @@ class Queue:
         if self.queue_url is None:
             _LOGGER.error("No subscribed queue")
             return [None]
-        response = await self._sqs.receive_message(
+        response = await self._client.receive_message(
             QueueUrl=self.queue_url, MaxNumberOfMessages=num_msgs
         )
         res = []
@@ -94,12 +94,12 @@ class Queue:
         return res
 
     async def delete_message(self, msg_handle):
-        await self._sqs.delete_message(
+        await self._client.delete_message(
             QueueUrl=self.queue_url, ReceiptHandle=msg_handle.receipt_handle
         )
 
     async def close(self):
-        await self._sqs.close()
+        await self._client.close()
 
 
 class MessageHandle:
