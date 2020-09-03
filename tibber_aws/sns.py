@@ -3,7 +3,7 @@ import boto3
 import json
 
 
-class SNS:
+class Topic:
     def __init__(self, topic_name, region_name='eu-west-1'):
         self._session = aiobotocore.get_session()
         self._client = self._session.create_client('sns', region_name=region_name, verify=False)
