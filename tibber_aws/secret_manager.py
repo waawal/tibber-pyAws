@@ -3,7 +3,7 @@ import json
 import logging
 
 import boto3
-from botocore.exceptions import ClientError
+from botocore.exceptions import ClientError, NoCredentialsError
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -13,7 +13,7 @@ DEFAULT_REGION_NAME = "eu-west-1"
 def get_secret_parser(secret_name, region_name=DEFAULT_REGION_NAME):
     try:
         secret = get_secret(secret_name, region_name)
-    except botocore.exceptions.NoCredentialsError:
+    except NoCredentialsError:
         _LOGGER.error("No credentials")
         return {}
     if secret is None:
