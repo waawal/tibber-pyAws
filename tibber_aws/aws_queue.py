@@ -68,19 +68,6 @@ class Queue:
         await sns.subscribe(TopicArn=topic_arn, Protocol="sqs", Endpoint=queue_arn)
         await sns.close()
 
-    async def send(self, subject, message, delay_seconds=0):
-        if self.queue_url is None:
-            _LOGGER.error("No subscribed queue")
-            return None
-
-        return await self.queue.send_message(
-            QueueUrl=self.queue.url,
-            DelaySeconds=delay_seconds,
-            MessageBody=json.dumps(
-                {"Subject": subject, "Message": json.dumps(message)}
-            ),
-        )
-
     async def receive_message(self, num_msgs=1):
         if self.queue_url is None:
             _LOGGER.error("No subscribed queue")

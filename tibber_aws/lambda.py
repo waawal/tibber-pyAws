@@ -1,7 +1,6 @@
 import asyncio
 import json
 import logging
-import numpy as np
 import os
 from urllib.parse import urlparse
 
@@ -10,6 +9,8 @@ import async_timeout
 from botocore.auth import SigV4Auth
 from botocore.awsrequest import AWSRequest
 from botocore.session import Session
+
+import numpy as np
 
 _LOGGER = logging.getLogger(__name__)
 

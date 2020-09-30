@@ -1,6 +1,7 @@
+import json
+
 import aiobotocore
 import boto3
-import json
 
 
 class Topic:
