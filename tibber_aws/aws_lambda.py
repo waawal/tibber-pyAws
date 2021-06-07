@@ -19,7 +19,7 @@ LAMBDA_ENDPOINT_BASE = "https://lambda.eu-west-1.amazonaws.com/2015-03-31/functi
 LAMBDA_TIMEOUT = 120
 
 
-async def invoke(func_name, payload, aiohttp_session, retries=3):
+async def invoke(func_name, payload, aiohttp_session, retries=3, timeout=LAMBDA_TIMEOUT):
     """Used to invoke lambda functions async."""
 
     def convert(o):
@@ -36,30 +36,26 @@ async def invoke(func_name, payload, aiohttp_session, retries=3):
         host_segments = urlparse(_url).netloc.split(".")
         service = host_segments[0]
         region = host_segments[1]
-        try:
-            data = json.dumps(convert(_payload))
-        except TypeError:
-            _LOGGER.error("Failed to convert to json, %s", _payload, exc_info=True)
-            raise
-        request = AWSRequest(method="POST", url=_url, data=data)
+        request = AWSRequest(method="POST", url=_url, data=_payload)
         SigV4Auth(CREDS, service, region).add_auth(request)
         return dict(request.headers.items())
 
     url = os.path.join(LAMBDA_ENDPOINT_BASE, func_name, "invocations")
-    signed_headers = create_signed_headers(url, payload)
+    data = json.dumps(convert(payload))
+    signed_headers = create_signed_headers(url, data)
 
-    def log(msg, retry):
-        if retry > 1:
-            _LOGGER.warning(msg)
+    def log(_msg, _retry):
+        if _retry > 1:
+            _LOGGER.warning(_msg)
             return
-        _LOGGER.error(msg)
+        _LOGGER.error(_msg)
 
     for retry in range(retries, 0, -1):
         try:
-            with async_timeout.timeout(LAMBDA_TIMEOUT):
+            with async_timeout.timeout(timeout):
                 try:
                     async with aiohttp_session.post(
-                        url, json=payload, headers=signed_headers
+                        url, data=data, headers=signed_headers
                     ) as response:
                         if response.status != 200:
                             msg = await response.json()
@@ -73,8 +69,10 @@ async def invoke(func_name, payload, aiohttp_session, retries=3):
                     log("ClientConnectorError", retry)
                     continue
         except asyncio.TimeoutError:
-            log("Timed out", retry)
+            log(f"Timed out {func_name}", retry)
             break
 
-    _LOGGER.error("Error getting data from %s", func_name)
+    _LOGGER.error(
+        "Error getting data from %s. %s", func_name, payload.get("deviceId", "")
+    )
     return {}
