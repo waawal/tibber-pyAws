@@ -74,7 +74,7 @@ async def invoke(func_name, payload, aiohttp_session, retries=3):
                     continue
         except asyncio.TimeoutError:
             log("Timed out", retry)
-            continue
+            break
 
     _LOGGER.error("Error getting data from %s", func_name)
     return {}
