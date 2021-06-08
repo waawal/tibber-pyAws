@@ -3,7 +3,7 @@ from setuptools import setup
 setup(
     name='tibber_aws',
     packages=['tibber_aws'],
-    install_requires=['aiobotocore', 'aiohttp', 'async_timeout', 'boto3', 'botocore', 'numpy'],
+    install_requires=['aiobotocore', 'aiohttp', 'async_timeout', 'boto3', 'botocore', 'numpy', 'async_exit_stack'],
     version='0.4.0',
     description='A python3 library to communicate with Aws',
     python_requires='>=3.5.3',

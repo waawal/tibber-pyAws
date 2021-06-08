@@ -86,7 +86,7 @@ class Queue(AwsBase):
         )
         await sns.close()
 
-    async def receive_message(self, num_msgs=1) -> list(MessageHandle):
+    async def receive_message(self, num_msgs=1) -> [MessageHandle]:
         if self.queue_url is None:
             _LOGGER.error("No subscribed queue")
             return [None]
