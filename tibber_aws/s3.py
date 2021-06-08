@@ -3,8 +3,9 @@ import datetime
 import logging
 import zlib
 
-import aiobotocore
 import botocore
+
+from .aws_base import AwsBase
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -13,20 +14,13 @@ STATE_OK = "ok"
 STATE_PRECONDITION_FAILED = "precondition_failed"
 
 
-class S3Bucket:
+class S3Bucket(AwsBase):
     def __init__(self, bucket_name, region_name="eu-west-1"):
         self._bucket_name = bucket_name
-        self._client = None
-        self._context_stack = contextlib.AsyncExitStack()
-        self._region_name = region_name
+        super().__init__("s3", region_name)
 
     async def load_data(self, key, if_unmodified_since=None):
-        if self._client is None:
-            self._client = await self._context_stack.enter_async_context(
-                aiobotocore.get_session().create_client(
-                    "s3", region_name=self._region_name
-                )
-            )
+        await self._init_client_if_required()
         if if_unmodified_since is None:
             if_unmodified_since = datetime.datetime(1900, 1, 1)
         try:
@@ -49,12 +43,7 @@ class S3Bucket:
         return res.decode("utf-8"), STATE_OK
 
     async def store_data(self, key, data):
-        if self._client is None:
-            self._client = await self._context_stack.enter_async_context(
-                aiobotocore.get_session().create_client(
-                    "s3", region_name=self._region_name
-                )
-            )
+        await self._init_client_if_required()
         if len(key) > 3 and key[-3:] == ".gz":
             compressor = zlib.compressobj(wbits=zlib.MAX_WBITS | 16)
             body = compressor.compress(data)
@@ -72,6 +61,3 @@ class S3Bucket:
             )
             return await self.store_data(key, data)
         return resp
-
-    async def close(self):
-        await self._context_stack.aclose()

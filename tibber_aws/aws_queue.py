@@ -1,28 +1,23 @@
-import contextlib
 import json
 import logging
 import time
 
 import aiobotocore
 
+from .aws_base import AwsBase
+
 _LOGGER = logging.getLogger(__name__)
 
 
-class Queue:
+class Queue(AwsBase):
     def __init__(self, queue_name, region_name="eu-west-1"):
-        self._client = None
-        self._context_stack = contextlib.AsyncExitStack()
         self._queue_name = queue_name
-        self._region_name = region_name
         self.queue_url = None
+        super().__init__("sqs", region_name)
 
     async def subscribe_topic(self, topic_name):
         session = aiobotocore.get_session()
-
-        if self._client is None:
-            self._client = await self._context_stack.enter_async_context(
-                session.create_client("sqs", region_name=self._region_name)
-            )
+        await self._init_client_if_required(session)
 
         response = await self._client.create_queue(QueueName=self._queue_name)
         self.queue_url = response["QueueUrl"]
@@ -74,7 +69,7 @@ class Queue:
                 QueueUrl=self.queue_url, Attributes={"Policy": json.dumps(policy)}
             )
 
-        await sns.subscribe(TopicArn=topic_arn, Protocol="sqs", Endpoint=queue_arn)
+        await sns.subscribe(TopicArn=topic_arn, Protocol=self._service_name, Endpoint=queue_arn)
         await sns.close()
 
     async def receive_message(self, num_msgs=1):
@@ -93,9 +88,6 @@ class Queue:
         await self._client.delete_message(
             QueueUrl=self.queue_url, ReceiptHandle=msg_handle.receipt_handle
         )
-
-    async def close(self):
-        await self._context_stack.aclose()
 
 
 class MessageHandle:
