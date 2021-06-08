@@ -58,10 +58,10 @@ class S3Bucket:
             return await self.store_data(key, data)
         return resp
 
-    async def list_data(self, prefix='/'):
+    async def list_data(self, prefix=''):
         """Lists ALL objects of the bucket in the given prefix.
             Args:
-                :prefix (str, optional): a prefix of the bucket to list (Default: /)
+                :prefix (str, optional): a prefix of the bucket to list (Default: none)
             Returns:
                 list: The list of objects::
                     [
