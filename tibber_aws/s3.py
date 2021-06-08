@@ -58,5 +58,30 @@ class S3Bucket:
             return await self.store_data(key, data)
         return resp
 
+    async def list_keys(self, prefix=''):
+        """Lists ALL objects of the bucket in the given prefix.
+            Args:
+                :prefix (str, optional): a prefix of the bucket to list (Default: none)
+            Returns:
+                list: The list of objects::
+                    [
+                        {
+                            'Key': 'prefix/file.json',
+                            'LastModified': datetime.datetime(2018, 12, 13, 14, 15, 16, tzinfo=tzutc()),
+                            'ETag': '"58bcd9641b1176ea012b6377eb5ce050"'
+                            'Size': 262756,
+                            'StorageClass': 'STANDARD'
+                        }
+                    ]
+        """
+        paginator = self.client.get_paginator('list_objects_v2')
+        objects = []
+        try:
+            async for resp in paginator.paginate(Bucket=self._bucket_name, Prefix=prefix):
+                objects.extend(resp.get('Contents', []))
+        except self.client.exceptions.NoSuchBucket:
+            return []
+        return objects
+
     async def close(self):
         await self.client.close()
