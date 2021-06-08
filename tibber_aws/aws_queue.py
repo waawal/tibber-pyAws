@@ -96,7 +96,6 @@ class Queue:
     async def close(self):
         await self._client.close()
         await self._context_stack.aclose()
-        await self._session.close()
 
 
 class MessageHandle:

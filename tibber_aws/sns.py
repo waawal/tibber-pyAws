@@ -33,4 +33,3 @@ class Topic:
         await self._context_stack.aclose()
         if self._client is not None:
             await self._client.close()
-        await self._session.close()
