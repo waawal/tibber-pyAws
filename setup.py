@@ -1,17 +1,23 @@
+import sys
+
 from setuptools import setup
+
+install_requires = [
+    "aiobotocore",
+    "aiohttp",
+    "async_timeout",
+    "boto3",
+    "botocore",
+    "numpy",
+]
+
+if sys.version_info < (3, 7):
+    install_requires.append("async_exit_stack")
 
 setup(
     name="tibber_aws",
     packages=["tibber_aws"],
-    install_requires=[
-        "aiobotocore",
-        "aiohttp",
-        "async_timeout",
-        "boto3",
-        "botocore",
-        "numpy",
-        'async_exit_stack; python_version < "3.7.0"',
-    ],
+    install_requires=install_requires,
     version="0.4.0",
     description="A python3 library to communicate with Aws",
     python_requires=">=3.5.3",
