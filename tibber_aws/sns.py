@@ -10,7 +10,9 @@ class Topic(AwsBase):
         self._queue_name = topic_name
         super().__init__("sns", region_name)
         self._topic_arn = (
-            boto3.resource(self._service_name, region_name).create_topic(Name=topic_name).arn
+            boto3.resource(self._service_name, region_name)
+            .create_topic(Name=topic_name)
+            .arn
         )
 
     async def publish(self, subject, message):

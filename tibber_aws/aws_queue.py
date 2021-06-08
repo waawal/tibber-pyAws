@@ -28,7 +28,6 @@ class Queue(AwsBase):
         queue_attributes = attr_response.get("Attributes")
         queue_arn = queue_attributes.get("QueueArn")
 
-        # Set up a policy to allow SNS access to the queue
         if "Policy" in queue_attributes:
             policy = json.loads(queue_attributes["Policy"])
         else:
@@ -69,7 +68,9 @@ class Queue(AwsBase):
                 QueueUrl=self.queue_url, Attributes={"Policy": json.dumps(policy)}
             )
 
-        await sns.subscribe(TopicArn=topic_arn, Protocol=self._service_name, Endpoint=queue_arn)
+        await sns.subscribe(
+            TopicArn=topic_arn, Protocol=self._service_name, Endpoint=queue_arn
+        )
         await sns.close()
 
     async def receive_message(self, num_msgs=1):

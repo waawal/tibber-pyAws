@@ -17,9 +17,9 @@ class AwsBase:
         await self._context_stack.aclose()
 
     async def _init_client_if_required(self, session=None):
-        session = session or aiobotocore.get_session()
         if self._client is not None:
             return
+        session = session or aiobotocore.get_session()
         self._client = await self._context_stack.enter_async_context(
             session.create_client(self._service_name, region_name=self._region_name)
         )
