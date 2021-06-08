@@ -10,7 +10,6 @@ class Topic:
         self._client = None
         self._context_stack = contextlib.AsyncExitStack()
         self._region_name = region_name
-        self._session = aiobotocore.get_session()
         self._topic_arn = (
             boto3.resource("sns", region_name).create_topic(Name=topic_name).arn
         )
@@ -18,7 +17,7 @@ class Topic:
     async def publish(self, subject, message):
         if self._client is None:
             self._client = await self._context_stack.enter_async_context(
-                self._session.create_client(
+                aiobotocore.get_session().create_client(
                     "sns", region_name=self._region_name, verify=False
                 )
             )

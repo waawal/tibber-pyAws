@@ -14,13 +14,14 @@ class Queue:
         self._context_stack = contextlib.AsyncExitStack()
         self._queue_name = queue_name
         self._region_name = region_name
-        self._session = aiobotocore.get_session()
         self.queue_url = None
 
     async def subscribe_topic(self, topic_name):
+        session = aiobotocore.get_session()
+
         if self._client is None:
             self._client = await self._context_stack.enter_async_context(
-                self._session.create_client("sqs", region_name=self._region_name)
+                session.create_client("sqs", region_name=self._region_name)
             )
 
         response = await self._client.create_queue(QueueName=self._queue_name)
@@ -60,7 +61,7 @@ class Queue:
             source_arn = [source_arn]
 
         sns = await self._context_stack.enter_async_context(
-            self._session.create_client("sns", region_name=self._region_name)
+            session.create_client("sns", region_name=self._region_name)
         )
         response = await sns.create_topic(Name=topic_name)
         topic_arn = response["TopicArn"]

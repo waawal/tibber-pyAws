@@ -19,12 +19,11 @@ class S3Bucket:
         self._client = None
         self._context_stack = contextlib.AsyncExitStack()
         self._region_name = region_name
-        self._session = aiobotocore.get_session()
 
     async def load_data(self, key, if_unmodified_since=None):
         if self._client is None:
             self._client = await self._context_stack.enter_async_context(
-                self._session.create_client(
+                aiobotocore.get_session().create_client(
                     "s3", region_name=self._region_name
                 )
             )
@@ -52,7 +51,7 @@ class S3Bucket:
     async def store_data(self, key, data):
         if self._client is None:
             self._client = await self._context_stack.enter_async_context(
-                self._session.create_client(
+                aiobotocore.get_session().create_client(
                     "s3", region_name=self._region_name
                 )
             )
