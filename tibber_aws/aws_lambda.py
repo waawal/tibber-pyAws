@@ -6,11 +6,10 @@ from urllib.parse import urlparse
 
 import aiohttp
 import async_timeout
+import numpy as np
 from botocore.auth import SigV4Auth
 from botocore.awsrequest import AWSRequest
 from botocore.session import Session
-
-import numpy as np
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -19,7 +18,9 @@ LAMBDA_ENDPOINT_BASE = "https://lambda.eu-west-1.amazonaws.com/2015-03-31/functi
 LAMBDA_TIMEOUT = 120
 
 
-async def invoke(func_name, payload, aiohttp_session, retries=3, timeout=LAMBDA_TIMEOUT):
+async def invoke(
+    func_name, payload, aiohttp_session, retries=3, timeout=LAMBDA_TIMEOUT
+):
     """Used to invoke lambda functions async."""
 
     def convert(o):

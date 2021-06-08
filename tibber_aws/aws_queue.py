@@ -1,3 +1,4 @@
+import contextlib
 import json
 import logging
 import time
@@ -12,10 +13,15 @@ class Queue:
         self._queue_name = queue_name
         self._region_name = region_name
         self._session = aiobotocore.get_session()
-        self._client = self._session.create_client("sqs", region_name=region_name)
+        self._context_stack = contextlib.AsyncExitStack()
+        self._client = None
         self.queue_url = None
 
     async def subscribe_topic(self, topic_name):
+        if self._client is None:
+            self._client = await self._context_stack.enter_async_context(
+                self._session.create_client("sqs", region_name=self._region_name)
+            )
 
         response = await self._client.create_queue(QueueName=self._queue_name)
         self.queue_url = response["QueueUrl"]
@@ -53,7 +59,9 @@ class Queue:
         if not isinstance(source_arn, list):
             source_arn = [source_arn]
 
-        sns = self._session.create_client("sns", region_name=self._region_name)
+        sns = await self._context_stack.enter_async_context(
+            self._session.create_client("sns", region_name=self._region_name)
+        )
         response = await sns.create_topic(Name=topic_name)
         topic_arn = response["TopicArn"]
 
@@ -67,6 +75,19 @@ class Queue:
 
         await sns.subscribe(TopicArn=topic_arn, Protocol="sqs", Endpoint=queue_arn)
         await sns.close()
+
+    async def send(self, subject, message, delay_seconds=0):
+        if self.queue_url is None:
+            _LOGGER.error("No subscribed queue")
+            return None
+
+        return await self.queue.send_message(
+            QueueUrl=self.queue.url,
+            DelaySeconds=delay_seconds,
+            MessageBody=json.dumps(
+                {"Subject": subject, "Message": json.dumps(message)}
+            ),
+        )
 
     async def receive_message(self, num_msgs=1):
         if self.queue_url is None:
@@ -87,6 +108,8 @@ class Queue:
 
     async def close(self):
         await self._client.close()
+        await self._context_stack.aclose()
+        await self._session.close()
 
 
 class MessageHandle:

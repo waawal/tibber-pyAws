@@ -1,5 +1,5 @@
 aiohttp
-aiobotocore==0.12.0
+aiobotocore
 async_timeout
 boto3
 numpy

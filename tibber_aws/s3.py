@@ -1,3 +1,4 @@
+import contextlib
 import datetime
 import logging
 import zlib
@@ -16,21 +17,28 @@ class S3Bucket:
     def __init__(self, bucket_name, region_name="eu-west-1"):
         self._bucket_name = bucket_name
         self._region_name = region_name
-        session = aiobotocore.get_session()
-        self.client = session.create_client("s3", region_name=region_name)
+        self._client = None
+        self._session = aiobotocore.get_session()
+        self._context_stack = contextlib.AsyncExitStack()
 
     async def load_data(self, key, if_unmodified_since=None):
+        if self._client is None:
+            self._client = await self._context_stack.enter_async_context(
+                self._session.create_client(
+                    "s3", region_name=self._region_name, verify=False
+                )
+            )
         if if_unmodified_since is None:
             if_unmodified_since = datetime.datetime(1900, 1, 1)
         try:
             res = await (
-                await self.client.get_object(
+                await self._client.get_object(
                     Bucket=self._bucket_name,
                     Key=key,
                     IfUnmodifiedSince=if_unmodified_since,
                 )
             )["Body"].read()
-        except self.client.exceptions.NoSuchKey:
+        except self._client.exceptions.NoSuchKey:
             return None, STATE_NOT_EXISTING
         except botocore.exceptions.ClientError as exp:
             if "PreconditionFailed" in str(exp):
@@ -42,6 +50,12 @@ class S3Bucket:
         return res.decode("utf-8"), STATE_OK
 
     async def store_data(self, key, data):
+        if self._client is None:
+            self._client = await self._context_stack.enter_async_context(
+                self._session.create_client(
+                    "s3", region_name=self._region_name, verify=False
+                )
+            )
         if len(key) > 3 and key[-3:] == ".gz":
             compressor = zlib.compressobj(wbits=zlib.MAX_WBITS | 16)
             body = compressor.compress(data)
@@ -49,14 +63,18 @@ class S3Bucket:
         else:
             body = data
         try:
-            resp = await self.client.put_object(
+            resp = await self._client.put_object(
                 Bucket=self._bucket_name, Key=key, Body=body
             )
-        except self.client.exceptions.NoSuchBucket:
-            await self.client.create_bucket(Bucket=self._bucket_name,
-                                            CreateBucketConfiguration={'LocationConstraint': self._region_name})
+        except self._client.exceptions.NoSuchBucket:
+            await self._client.create_bucket(
+                Bucket=self._bucket_name,
+                CreateBucketConfiguration={"LocationConstraint": self._region_name},
+            )
             return await self.store_data(key, data)
         return resp
 
     async def close(self):
-        await self.client.close()
+        await self._client.close()
+        await self._context_stack.aclose()
+        await self._session.close()
