@@ -1,4 +1,7 @@
-import contextlib
+try:
+    from contextlib import AsyncExitStack
+except ImportError:  # To support python 3.6
+    from async_exit_stack import AsyncExitStack
 import logging
 
 import aiobotocore
@@ -9,7 +12,7 @@ _LOGGER = logging.getLogger(__name__)
 class AwsBase:
     def __init__(self, service_name, region_name="eu-west-1"):
         self._client = None
-        self._context_stack = contextlib.AsyncExitStack()
+        self._context_stack = AsyncExitStack()
         self._region_name = region_name
         self._service_name = service_name
 
