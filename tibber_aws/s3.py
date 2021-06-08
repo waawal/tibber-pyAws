@@ -41,7 +41,7 @@ class S3Bucket(AwsBase):
             return content, STATE_OK
         return res.decode("utf-8"), STATE_OK
 
-    async def store_data(self, key, data):
+    async def store_data(self, key, data, retry=1):
         await self._init_client_if_required()
         if len(key) > 3 and key[-3:] == ".gz":
             compressor = zlib.compressobj(wbits=zlib.MAX_WBITS | 16)
@@ -54,9 +54,10 @@ class S3Bucket(AwsBase):
                 Bucket=self._bucket_name, Key=key, Body=body
             )
         except self._client.exceptions.NoSuchBucket:
-            await self._client.create_bucket(
-                Bucket=self._bucket_name,
-                CreateBucketConfiguration={"LocationConstraint": self._region_name},
-            )
-            return await self.store_data(key, data)
+            if retry > 0:
+                await self._client.create_bucket(
+                    Bucket=self._bucket_name,
+                    CreateBucketConfiguration={"LocationConstraint": self._region_name},
+                )
+                return await self.store_data(key, data, retry - 1)
         return resp

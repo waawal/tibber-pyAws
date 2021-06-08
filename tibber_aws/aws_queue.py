@@ -9,13 +9,26 @@ from .aws_base import AwsBase
 _LOGGER = logging.getLogger(__name__)
 
 
+class MessageHandle:
+    def __init__(self, msg):
+        self._msg = msg
+
+    @property
+    def body(self):
+        return self._msg["Body"]
+
+    @property
+    def receipt_handle(self):
+        return self._msg["ReceiptHandle"]
+
+
 class Queue(AwsBase):
-    def __init__(self, queue_name, region_name="eu-west-1"):
+    def __init__(self, queue_name, region_name="eu-west-1") -> None:
         self._queue_name = queue_name
         self.queue_url = None
         super().__init__("sqs", region_name)
 
-    async def subscribe_topic(self, topic_name):
+    async def subscribe_topic(self, topic_name) -> None:
         session = aiobotocore.get_session()
         await self._init_client_if_required(session)
 
@@ -73,7 +86,7 @@ class Queue(AwsBase):
         )
         await sns.close()
 
-    async def receive_message(self, num_msgs=1):
+    async def receive_message(self, num_msgs=1) -> list(MessageHandle):
         if self.queue_url is None:
             _LOGGER.error("No subscribed queue")
             return [None]
@@ -85,20 +98,7 @@ class Queue(AwsBase):
             res.append(MessageHandle(msg))
         return res
 
-    async def delete_message(self, msg_handle):
+    async def delete_message(self, msg_handle: MessageHandle) -> None:
         await self._client.delete_message(
             QueueUrl=self.queue_url, ReceiptHandle=msg_handle.receipt_handle
         )
-
-
-class MessageHandle:
-    def __init__(self, msg):
-        self._msg = msg
-
-    @property
-    def body(self):
-        return self._msg["Body"]
-
-    @property
-    def receipt_handle(self):
-        return self._msg["ReceiptHandle"]
