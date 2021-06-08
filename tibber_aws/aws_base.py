@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 try:
     from contextlib import AsyncExitStack
 except ImportError:  # To support python 3.6
@@ -21,9 +19,7 @@ class AwsBase:
     async def close(self) -> None:
         await self._context_stack.aclose()
 
-    async def _init_client_if_required(
-        self, session: aiobotocore.AioSession | None = None
-    ) -> None:
+    async def _init_client_if_required(self, session=None) -> None:
         if self._client is not None:
             return
         session = session or aiobotocore.get_session()
