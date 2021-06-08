@@ -7,10 +7,10 @@ import boto3
 
 class Topic:
     def __init__(self, topic_name, region_name="eu-west-1"):
-        self._session = aiobotocore.get_session()
-        self._region_name = region_name
         self._client = None
         self._context_stack = contextlib.AsyncExitStack()
+        self._region_name = region_name
+        self._session = aiobotocore.get_session()
         self._topic_arn = (
             boto3.resource("sns", region_name).create_topic(Name=topic_name).arn
         )

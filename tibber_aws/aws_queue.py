@@ -10,11 +10,11 @@ _LOGGER = logging.getLogger(__name__)
 
 class Queue:
     def __init__(self, queue_name, region_name="eu-west-1"):
+        self._client = None
+        self._context_stack = contextlib.AsyncExitStack()
         self._queue_name = queue_name
         self._region_name = region_name
         self._session = aiobotocore.get_session()
-        self._context_stack = contextlib.AsyncExitStack()
-        self._client = None
         self.queue_url = None
 
     async def subscribe_topic(self, topic_name):
@@ -75,19 +75,6 @@ class Queue:
 
         await sns.subscribe(TopicArn=topic_arn, Protocol="sqs", Endpoint=queue_arn)
         await sns.close()
-
-    async def send(self, subject, message, delay_seconds=0):
-        if self.queue_url is None:
-            _LOGGER.error("No subscribed queue")
-            return None
-
-        return await self.queue.send_message(
-            QueueUrl=self.queue.url,
-            DelaySeconds=delay_seconds,
-            MessageBody=json.dumps(
-                {"Subject": subject, "Message": json.dumps(message)}
-            ),
-        )
 
     async def receive_message(self, num_msgs=1):
         if self.queue_url is None:

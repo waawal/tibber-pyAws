@@ -16,10 +16,10 @@ STATE_PRECONDITION_FAILED = "precondition_failed"
 class S3Bucket:
     def __init__(self, bucket_name, region_name="eu-west-1"):
         self._bucket_name = bucket_name
-        self._region_name = region_name
         self._client = None
-        self._session = aiobotocore.get_session()
         self._context_stack = contextlib.AsyncExitStack()
+        self._region_name = region_name
+        self._session = aiobotocore.get_session()
 
     async def load_data(self, key, if_unmodified_since=None):
         if self._client is None:
