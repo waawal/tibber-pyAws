@@ -25,7 +25,7 @@ class S3Bucket:
         if self._client is None:
             self._client = await self._context_stack.enter_async_context(
                 self._session.create_client(
-                    "s3", region_name=self._region_name, verify=False
+                    "s3", region_name=self._region_name
                 )
             )
         if if_unmodified_since is None:
@@ -53,7 +53,7 @@ class S3Bucket:
         if self._client is None:
             self._client = await self._context_stack.enter_async_context(
                 self._session.create_client(
-                    "s3", region_name=self._region_name, verify=False
+                    "s3", region_name=self._region_name
                 )
             )
         if len(key) > 3 and key[-3:] == ".gz":
