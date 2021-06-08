@@ -7,7 +7,6 @@ from .aws_base import AwsBase
 
 class Topic(AwsBase):
     def __init__(self, topic_name, region_name="eu-west-1"):
-        self._queue_name = topic_name
         super().__init__("sns", region_name)
         self._topic_arn = (
             boto3.resource(self._service_name, region_name)
